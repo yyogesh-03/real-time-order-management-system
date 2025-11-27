@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database Service
+  db:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: eatclub_db
+    ports:
+      # CHANGED: Mapping host port 5433 to container port 5432 to avoid 'address already in use' error on 5432
+      - "5433:5432" 
+    volumes:
+      - eatclub_data:/var/lib/postgresql/data # Persistent data volume
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d eatclub_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  # 2. Fast-Path API Service
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # --reload for dev
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      # Internal connection string remains the same as 'db' is the hostname
+      DATABASE_URL: postgres://user:password@db:5432/eatclub_db
+    depends_on:
+      db:
+        condition: service_healthy # Wait for DB to be healthy
+  
+  # 3. Slow-Path Consumer/Worker Service (Outbox Poller)
+  consumer:
+    build: .
+    # Runs the poller script which implements the consumer logic
+    command: python -m app.consumers.outbox_poller # <-- CHANGED TO USE -m
+    volumes:
+      - .:/app
+    environment:
+      # Internal connection string remains the same as 'db' is the hostname
+      DATABASE_URL: postgres://user:password@db:5432/eatclub_db
+      POLLING_INTERVAL: 1 # Poll every 1 second
+    depends_on:
+      db:
+        condition: service_healthy # Wait for DB to be healthy
+      
+volumes:
+  eatclub_data:
