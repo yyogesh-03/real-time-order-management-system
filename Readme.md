@@ -3,10 +3,11 @@
 ## Architecture Overview
 This system is designed for high performance and reliability using the **Transactional Outbox Pattern**. This separates the immediate, fast-path API operations (order placement, cancellation) from the slower, asynchronous, and idempotent business logic (inventory deduction/restoration, status updates).
 
-
-
 - **Fast Path (API):** When an order is placed, the `Order` record and an `OutboxEvent` (`order.placed.v1`) are written to the database **atomically** within a single transaction. This ensures the API response meets the **<200ms latency requirement**.
 - **Slow Path (Consumer):** A dedicated worker (`consumer` service) polls the `outbox_events` table for unpublished records. Upon finding one, it dispatches the event payload to the relevant consumer handler, ensuring that complex, potentially slow logic (like row-level locking for inventory) does not block the API.
+
+![Architecture Diagram](./images/hld.jpg)
+
 
 ## Core Features Implemented
 
@@ -18,6 +19,13 @@ This system is designed for high performance and reliability using the **Transac
 6.  **Inventory Restoration:** Handled asynchronously by the consumer (via `order.cancelled.v1`).
 7.  **Idempotency:** The `processed_events` table prevents consumers from reprocessing the same event twice.
 8.  **Input Validation:** Fully implemented using **Pydantic Schemas** on all API endpoints.
+
+**Inventory Update Flow**
+![Inventory Update Flow](./images/inventory.png)
+
+**Class Diagram**
+
+![Class Diagram](./images/class.png)
 
 ## Setup & Run Instructions
 
@@ -33,6 +41,8 @@ This system is designed for high performance and reliability using the **Transac
 3.  **Access:**
     -   API Documentation (Swagger UI): `http://localhost:8000/docs`
     -   Consumer Logs: Monitor the terminal output from the `consumer` service.
+
+
 
 ## Testing Flow
 
