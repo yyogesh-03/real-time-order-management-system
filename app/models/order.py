@@ -12,7 +12,7 @@ class OrderStatus(str, Enum):
 
 
 class Restaurant(models.Model):
-    id = fields.UUIDField(pk=True)
+    id = fields.UUIDField(primary_key=True)
     name = fields.CharField(max_length=255)
     is_active = fields.BooleanField(default=True)
     
@@ -21,7 +21,7 @@ class Restaurant(models.Model):
 
 
 class MenuItem(models.Model):
-    id = fields.UUIDField(pk=True)
+    id = fields.UUIDField(primary_key=True)
     restaurant = fields.ForeignKeyField("models.Restaurant", related_name="menu_items")
     name = fields.CharField(max_length=255)
     price = fields.DecimalField(max_digits=12, decimal_places=2)
@@ -32,7 +32,7 @@ class MenuItem(models.Model):
 
 
 class Order(models.Model):
-    id = fields.UUIDField(pk=True, default=uuid.uuid4)
+    id = fields.UUIDField(primary_key=True, default=uuid.uuid4)
     user_id = fields.CharField(max_length=64)
     restaurant = fields.ForeignKeyField("models.Restaurant", related_name="orders")
     status = fields.CharEnumField(OrderStatus, default=OrderStatus.PLACED)
@@ -45,7 +45,7 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
-    id = fields.UUIDField(pk=True, default=uuid.uuid4)
+    id = fields.UUIDField(primary_key=True, default=uuid.uuid4)
     order = fields.ForeignKeyField("models.Order", related_name="items")
     menu_item = fields.ForeignKeyField("models.MenuItem", related_name="order_items")
     quantity = fields.IntField()

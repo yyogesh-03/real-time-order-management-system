@@ -3,7 +3,7 @@ import uuid
 
 
 class Inventory(models.Model):
-    id = fields.UUIDField(pk=True, default=uuid.uuid4)
+    id = fields.UUIDField(primary_key=True, default=uuid.uuid4)
     # One-to-one link to ensure a single inventory record per menu item
     menu_item = fields.OneToOneField("models.MenuItem", related_name="inventory")
     available_qty = fields.IntField()

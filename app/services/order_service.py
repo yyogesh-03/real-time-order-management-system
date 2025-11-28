@@ -33,7 +33,7 @@ async def place_order(user_id: str, restaurant_id: UUID, items: List[Dict]) -> O
         event_items_payload = [] 
 
         for it in items:
-            mid_str = str(it["menu_item_id"]) # Ensure UUID is converted to string for key lookup
+            mid_str = str(it["menu_item_id"])
             qty = int(it["quantity"])
             menu = menu_map.get(mid_str)
 
@@ -84,7 +84,6 @@ async def update_order_status(order_id: UUID, new_status: OrderStatus) -> Order:
     """
     # Use the Tortoise in_transaction context manager for atomicity
     async with in_transaction() as conn:
-        # Fetch order and prefetch items in case we need to cancel (compensation event)
         order = await Order.get_or_none(id=order_id).prefetch_related('items').using_db(conn)
         
         if not order:

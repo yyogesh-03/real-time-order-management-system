@@ -1,9 +1,13 @@
+import logging
 from fastapi import APIRouter, HTTPException, status
 from app.models.inventory import Inventory
 from app.models.order import MenuItem, Restaurant
-from app.schemas.inventory import InventoryResponse
+from app.schemas.inventory import InventoryItemRequest, InventoryResponse, RestaurantRequest
 from uuid import UUID
 from typing import Dict, Any
+
+log = logging.getLogger("uvicorn")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 router = APIRouter()
 
@@ -22,51 +26,74 @@ async def get_inventory_stock(menu_item_id: UUID):
             updated_at=str(inventory.updated_at)
         )
     except Exception as e:
-        # Catches other potential DB/Tortoise errors
-        print(f"Error fetching inventory: {e}")
+        log.error(f"Error fetching inventory: {e}")
         raise HTTPException(status_code=500, detail="Server failed to fetch inventory.")
 
 
-@router.post("/seed", status_code=status.HTTP_201_CREATED)
-async def seed_initial_data():
-    """Seeds the database with initial Restaurant, Menu, and Inventory data for testing."""
+@router.post("/add/{restaurant_id}/item", status_code=status.HTTP_201_CREATED)
+async def add_inventory_item(restaurant_id: UUID, item_data: InventoryItemRequest):
+    """
+    Adds a new menu item and its initial inventory to a specified restaurant. 
+    This is the user-friendly way to add data via the API.
+    """
     try:
-        restaurant_id = UUID("729d4791-c9f2-411a-826c-949479b12270")
-        item1_id = UUID("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11") # High Stock
-        item2_id = UUID("b2eebc99-9c0b-4ef8-bb6d-6bb9bd380a12") # Low Stock (triggers alert logic)
-        
-        # 1. Create/Update Restaurant
-        await Restaurant.update_or_create(
-            id=restaurant_id, 
-            defaults={"name": "The Great Biryani Spot", "is_active": True}
+        # 1. Validate Restaurant Exists
+        try:
+            restaurant = await Restaurant.get(id=restaurant_id)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Restaurant with ID {restaurant_id} not found."
+            )
+
+        # 2. Create the Menu Item
+        menu_item = await MenuItem.create(
+            restaurant=restaurant,
+            name=item_data.name,
+            price=item_data.price,
+            is_active=item_data.is_active
         )
         
-        # 2. Create/Update Menu Items
-        await MenuItem.update_or_create(
-            id=item1_id, 
-            defaults={"restaurant_id": restaurant_id, "name": "Chicken Biryani", "price": 450.00, "is_active": True}
+        # 3. Create the Initial Inventory Record
+        inventory = await Inventory.create(
+            menu_item=menu_item,
+            available_qty=item_data.initial_qty,
+            threshold_qty=item_data.threshold_qty
         )
-        await MenuItem.update_or_create(
-            id=item2_id, 
-            defaults={"restaurant_id": restaurant_id, "name": "Veg Thali", "price": 300.00, "is_active": True}
-        )
-        
-        # 3. Create/Update Inventory
-        await Inventory.update_or_create(
-            menu_item_id=item1_id, 
-            defaults={"available_qty": 100, "threshold_qty": 10}
-        )
-        await Inventory.update_or_create(
-            menu_item_id=item2_id, 
-            defaults={"available_qty": 5, "threshold_qty": 10} # Initial low stock
-        )
-        
-        return {"message": "Database successfully seeded. Use the following IDs for testing:",
-                "restaurant_id": str(restaurant_id),
-                "chicken_biryani_id": str(item1_id),
-                "veg_thali_id": str(item2_id),
-                "notes": "Veg Thali (item2) is initially low stock (5 available)."
-                }
+
+        return {
+            "message": f"Successfully added '{item_data.name}' to {restaurant.name}.",
+            "menu_item_id": str(menu_item.id),
+            "initial_stock": inventory.available_qty
+        }
+
+    except HTTPException:
+        # Re-raise explicit HTTP exceptions (like 404)
+        raise
     except Exception as e:
-        print(f"Error seeding data: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to seed data: {e}")
+        log.error(f"Error adding inventory item: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal error processing request: {e}"
+        )
+
+@router.post("/add/restaurant", status_code=status.HTTP_201_CREATED)
+async def add_restaurant(restaurant_data: RestaurantRequest):
+    """
+    Creates a new restaurant record.
+    """
+    try:
+        restaurant = await Restaurant.create(
+            name=restaurant_data.name,
+            is_active=restaurant_data.is_active
+        )
+        return {
+            "message": f"Restaurant '{restaurant.name}' created successfully.",
+            "restaurant_id": str(restaurant.id)
+        }
+    except Exception as e:
+        log.error(f"Error creating restaurant: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal error processing request: {e}"
+        )

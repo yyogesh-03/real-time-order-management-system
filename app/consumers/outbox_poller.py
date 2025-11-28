@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from app.models.outbox import OutboxEvent
 # Import all handler functions
 from app.consumers.inventory_consumer import handle_order_placed, handle_order_cancelled
@@ -6,6 +7,10 @@ from app.consumers.order_status_consumer import handle_inventory_success, handle
 from app.core.db import init_db
 from app.core.config import POLLING_INTERVAL, MAX_ATTEMPTS, BATCH_SIZE
 import traceback
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+log = logging.getLogger("outbox_poller")
 
 async def mock_dispatch_event(event: OutboxEvent):
     """
@@ -16,7 +21,7 @@ async def mock_dispatch_event(event: OutboxEvent):
     event_id = event.id
     payload = event.payload
     
-    print(f"Poller DISPATCHING: {event_type} (ID: {event_id.hex[:8]}...)")
+    log.info(f"Poller DISPATCHING: {event_type} (ID: {event_id.hex[:8]}...)")
 
     # Routing based on event type
     if event_type == "order.placed.v1":
@@ -37,14 +42,14 @@ async def mock_dispatch_event(event: OutboxEvent):
         
     elif event_type == "order.status_changed.v1":
         # Consumer N: Notification/Analytics/External System (Simulated here)
-        print(f"EXTERNAL NOTIFICATION: Order {payload.get('order_id')} status updated to {payload.get('new_status')}")
+        log.info(f"EXTERNAL NOTIFICATION: Order {payload.get('order_id')} status updated to {payload.get('new_status')}")
 
     elif event_type == "inventory.low_stock_alert.v1":
         # Consumer N: Alerting System (Simulated here)
-        print(f"!!! SYSTEM ALERT !!! Item {payload.get('menu_item_id')} has low stock ({payload.get('available_qty')} remaining).")
+        log.info(f"!!! SYSTEM ALERT !!! Item {payload.get('menu_item_id')} has low stock ({payload.get('available_qty')} remaining).")
         
     else:
-        print(f"WARNING: No handler found for event type: {event_type}")
+        log.info(f"WARNING: No handler found for event type: {event_type}")
 
 async def poll_outbox_for_new_events():
     """
@@ -74,13 +79,13 @@ async def poll_outbox_for_new_events():
 async def start_outbox_poller():
     """Main loop for the poller service."""
     await init_db()
-    print("--- Outbox Poller Service Started ---")
+    log.info("--- Outbox Poller Service Started ---")
     
     while True:
         try:
             await poll_outbox_for_new_events()
         except Exception as e:
-            print(f"Poller encountered a critical DB error: {e}.")
+            log.error(f"Poller encountered a critical DB error: {e}.")
             
         await asyncio.sleep(POLLING_INTERVAL)
 
@@ -88,4 +93,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(start_outbox_poller())
     except KeyboardInterrupt:
-        print("Poller service stopped.")
+        log.error("Poller service stopped.")

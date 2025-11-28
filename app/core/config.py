@@ -5,7 +5,7 @@ import os
 DB_URL = os.getenv("DATABASE_URL", "postgres://user:password@db:5432/eatclub_db")
 
 # Application Metadata
-PROJECT_NAME = "EatClub Order Management System"
+PROJECT_NAME = "Realtime Order Management System"
 VERSION = "1.0.0"
 
 # Outbox Poller Configuration (Simulates the Consumer/Worker)

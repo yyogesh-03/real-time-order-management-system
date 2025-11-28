@@ -7,7 +7,7 @@ class OutboxEvent(models.Model):
     The Outbox table stores events atomically with the database transaction.
     This is the core of the Transactional Outbox Pattern.
     """
-    id = fields.UUIDField(pk=True, default=uuid.uuid4)
+    id = fields.UUIDField(primary_key=True, default=uuid.uuid4)
     aggregate_type = fields.CharField(max_length=64) # e.g., 'order', 'restaurant'
     aggregate_id = fields.UUIDField(null=True) # ID of the entity that generated the event
     event_type = fields.CharField(max_length=128) # e.g., 'order.placed.v1'

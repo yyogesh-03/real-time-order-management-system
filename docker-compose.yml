@@ -9,6 +9,11 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: eatclub_db
+      LOG_LEVEL: DEBUG
+      PYTHONUNBUFFERED: 1
+      TZ: Asia/Kolkata 
+      PGTZ: Asia/Kolkata
+
     ports:
       # CHANGED: Mapping host port 5433 to container port 5432 to avoid 'address already in use' error on 5432
       - "5433:5432" 
@@ -31,11 +36,14 @@ services:
     environment:
       # Internal connection string remains the same as 'db' is the hostname
       DATABASE_URL: postgres://user:password@db:5432/eatclub_db
+      LOG_LEVEL: DEBUG
+      PYTHONUNBUFFERED: 1
+      TZ: Asia/Kolkata 
     depends_on:
       db:
         condition: service_healthy # Wait for DB to be healthy
   
-  # 3. Slow-Path Consumer/Worker Service (Outbox Poller)
+  # 3. Consumer/Worker Service (Outbox Poller)
   consumer:
     build: .
     # Runs the poller script which implements the consumer logic
@@ -46,6 +54,9 @@ services:
       # Internal connection string remains the same as 'db' is the hostname
       DATABASE_URL: postgres://user:password@db:5432/eatclub_db
       POLLING_INTERVAL: 1 # Poll every 1 second
+      LOG_LEVEL: DEBUG
+      PYTHONUNBUFFERED: 1
+      TZ: Asia/Kolkata 
     depends_on:
       db:
         condition: service_healthy # Wait for DB to be healthy

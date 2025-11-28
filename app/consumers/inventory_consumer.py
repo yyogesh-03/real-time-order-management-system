@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from tortoise.transactions import in_transaction
 from app.models.inventory import Inventory
 from app.models.processed_event import ProcessedEvent
@@ -6,10 +7,13 @@ from app.events.outbox_utility import create_outbox_event
 from typing import Dict, Any
 from uuid import UUID
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+log = logging.getLogger("inventory_consumer")
+
 async def check_for_low_stock(inventory: Inventory, order_id: UUID, conn: Any):
     """Checks if current stock is below threshold and emits an alert if so."""
     if inventory.available_qty <= inventory.threshold_qty:
-        print(f"ALERT: Low stock detected for Item {inventory.menu_item_id}! Qty: {inventory.available_qty}")
+        log.warning(f"ALERT: Low stock detected for Item {inventory.menu_item_id}! Qty: {inventory.available_qty}")
         # Emit a low stock event (e.g., for notification service)
         await create_outbox_event(
             aggregate_type="inventory", 
@@ -34,7 +38,7 @@ async def handle_order_placed(event_payload: Dict[str, Any], event_id: UUID):
     items = event_payload.get("items", [])
     event_id_str = str(event_id)
     
-    print(f"\n--- Worker: DEDUCTING for Order {order_id} ---")
+    log.info(f"\n--- Worker: DEDUCTING for Order {order_id} ---")
 
     try:
         # Idempotency Check
@@ -72,7 +76,7 @@ async def handle_order_placed(event_payload: Dict[str, Any], event_id: UUID):
                 event_type="inventory.deducted.success.v1", payload={"order_id": str(order_id)},
                 conn=conn
             )
-            print(f"SUCCESS: Inventory deducted for Order {order_id}")
+            log.info(f"SUCCESS: Inventory deducted for Order {order_id}")
 
     except Exception as e:
         # Emit Failure Event (requires order cancellation)
@@ -80,7 +84,7 @@ async def handle_order_placed(event_payload: Dict[str, Any], event_id: UUID):
             aggregate_type="order", aggregate_id=order_id,
             event_type="order.cancellation.required.v1", payload={"order_id": str(order_id), "reason": str(e)},
         )
-        print(f"FAILURE: Inventory deduction failed for Order {order_id}. Reason: {e}")
+        log.error(f"FAILURE: Inventory deduction failed for Order {order_id}. Reason: {e}")
 
 async def handle_order_cancelled(event_payload: Dict[str, Any], event_id: UUID):
     """
@@ -91,7 +95,7 @@ async def handle_order_cancelled(event_payload: Dict[str, Any], event_id: UUID):
     items = event_payload.get("items", [])
     event_id_str = str(event_id)
 
-    print(f"\n--- Worker: RESTORING for Order {order_id} ---")
+    log.info(f"\n--- Worker: RESTORING for Order {order_id} ---")
 
     try:
         # Idempotency Check
@@ -114,7 +118,7 @@ async def handle_order_cancelled(event_payload: Dict[str, Any], event_id: UUID):
                     await inv.save(update_fields=['available_qty', 'updated_at'], using_db=conn)
 
             await ProcessedEvent.create(event_id=event_id_str, using_db=conn)
-            print(f"SUCCESS: Inventory restored for Order {order_id}")
+            log.info(f"SUCCESS: Inventory restored for Order {order_id}")
 
     except Exception as e:
-        print(f"CRITICAL ERROR: Failed to restore inventory for {order_id}: {e}")
+        log.error(f"CRITICAL ERROR: Failed to restore inventory for {order_id}: {e}")
