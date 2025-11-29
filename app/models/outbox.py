@@ -18,3 +18,10 @@ class OutboxEvent(models.Model):
 
     class Meta:
         table = "outbox_events"
+        indexes = [
+            ("published",),                          # Consumer polling
+            ("created_at",),                         # Time-based queries
+            ("aggregate_type", "aggregate_id"),      # Aggregate lookups
+            ("event_type",),                         # Event type filtering
+            ("published", "created_at"),             # Composite: polling optimization
+        ]

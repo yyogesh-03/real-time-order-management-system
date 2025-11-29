@@ -18,6 +18,9 @@ class Restaurant(models.Model):
     
     class Meta:
         table = "restaurants"
+        indexes = [
+            ("is_active",),  # For filtering active restaurants
+        ]
 
 
 class MenuItem(models.Model):
@@ -29,6 +32,11 @@ class MenuItem(models.Model):
 
     class Meta:
         table = "menu_items"
+        indexes = [
+            ("restaurant_id",),  # Fast restaurant menu queries
+            ("is_active",),      # Filter active items
+            ("restaurant_id", "is_active"),  # Composite: restaurant's active items
+        ]
 
 
 class Order(models.Model):
@@ -42,6 +50,14 @@ class Order(models.Model):
 
     class Meta:
         table = "orders"
+        indexes = [
+            ("restaurant_id",),          # Restaurant order queries
+            ("status",),                 # Status-based filtering
+            ("user_id",),                # User order history
+            ("created_at",),             # Time-based queries
+            ("updated_at",),             # Recent updates
+            ("status", "created_at"),    # Composite: status with time
+        ]
 
 
 class OrderItem(models.Model):
@@ -54,3 +70,8 @@ class OrderItem(models.Model):
 
     class Meta:
         table = "order_items"
+        indexes = [
+            ("order_id",),              # Order line items
+            ("menu_item_id",),          # Menu item popularity
+            ("order_id", "menu_item_id"),  # Composite: order+item lookup
+        ]

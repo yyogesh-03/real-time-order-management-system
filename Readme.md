@@ -78,7 +78,10 @@ The flow of an order from initial placement to completion or cancellation.
 | `order.status.{status}.v1` | Status update | Notifies downstream services (e.g., delivery, customers). |
 | `order.cancelled.v1` | Order cancellation | Triggers **asynchronous inventory restoration** and final state transition. |
 
-
+## Entity Relationship Diagram
+<p>
+  <img src="./images/erd.png" alt="ER Diagram"/>
+</p>
 
 
 ## Setup & Run Instructions
@@ -132,3 +135,42 @@ Before placing an order, you must set up the necessary data using the inventory 
     * Detection of the `order.cancelled.v1` event dispatch.
     * The **inventory restoration** logic executing.
 * **Verification:** Re-verify stock using `GET /api/v1/inventory/{menu_item_id}`. The stock should be **restored** to the previous level (e.g., back to 10 units).
+
+
+
+
+## 💡 Important Architecture Decisions
+
+### **1. Why Transactional Outbox Pattern?**
+
+| Decision | Rationale | Benefit |
+|----------|-----------|---------|
+| **Transactional Outbox** | Ensure atomic order creation and event publishing | **Guaranteed Delivery**: No lost orders even during failures |
+| **Same Database Transaction** | Order and outbox event created together | **Performance**: API responses stay under 200ms |
+| **Durable Storage** | Events persisted to database before processing | **Reliability**: Events are never lost between service restarts |
+
+### **2. Why Separate Processed Events Table?**
+
+| Decision | Rationale | Benefit |
+|----------|-----------|---------|
+| **Dedicated Processed Events Table** | Separate from outbox events | **Idempotency**: Prevents duplicate processing across consumer instances |
+| **No Foreign Key Relationship** | Independent tables for different lifecycles | **Audit**: Permanent record of all processed events |
+| **Unique Index on event_id** | Fast idempotency checks | **Performance**: Optimized for different access patterns |
+
+### **3. Why Async Event Processing?**
+
+| Decision | Rationale | Benefit |
+|----------|-----------|---------|
+| **Separate API and Consumer** | Fast path vs slow path separation | **Scalability**: Independent scaling of API and workers |
+| **Non-blocking Operations** | Immediate API response | **Resilience**: Failed processing doesn't block new orders |
+| **Event-driven Architecture** | Loose coupling between services | **Extensibility**: Easy to add new event consumers |
+
+### **4. Database Indexing Strategy**
+
+| Decision | Rationale | Benefit |
+|----------|-----------|---------|
+| **Composite Indexes** | Multiple columns in single index | **Read Optimization**: Composite indexes for common query patterns |
+| **Minimal Indexes on Writes** | Reduce write overhead | **Write Performance**: Minimal indexes on write-heavy tables |
+| **Regular Maintenance** | Index rebuilding and statistics | **Maintenance**: Regular index rebuilding for performance |
+
+---

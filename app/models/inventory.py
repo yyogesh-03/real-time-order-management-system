@@ -12,3 +12,7 @@ class Inventory(models.Model):
     
     class Meta:
         table = "inventory"
+        indexes = [
+            ("menu_item_id",),  # Fast menu item lookups
+            ("updated_at",),    # For recent updates
+        ]
