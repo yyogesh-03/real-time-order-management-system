@@ -6,12 +6,14 @@ from app.schemas.inventory import InventoryItemRequest, InventoryResponse, Resta
 from uuid import UUID
 from typing import Dict, Any
 
+from app.schemas.response import SuccessResponse
+
 log = logging.getLogger("uvicorn")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 router = APIRouter()
 
-@router.get("/{menu_item_id}", response_model=InventoryResponse)
+@router.get("/{menu_item_id}", response_model=SuccessResponse)
 async def get_inventory_stock(menu_item_id: UUID):
     """Fetches the available stock for a specific menu item."""
     try:
@@ -20,18 +22,22 @@ async def get_inventory_stock(menu_item_id: UUID):
         if not inventory:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory not found for item.")
         
-        return InventoryResponse(
+        data= InventoryResponse(
             menu_item_id=inventory.menu_item_id,
             available_qty=inventory.available_qty,
             updated_at=str(inventory.updated_at)
-        )
+        ).model_dump()
+        return SuccessResponse(data=data)
+    except HTTPException as he:
+        # Re-raise explicit HTTP exceptions (like 404)
+        raise he
     except Exception as e:
         log.error(f"Error fetching inventory: {e}")
         raise HTTPException(status_code=500, detail="Server failed to fetch inventory.")
 
 
 @router.post("/add/{restaurant_id}/item", status_code=status.HTTP_201_CREATED)
-async def add_inventory_item(restaurant_id: UUID, item_data: InventoryItemRequest):
+async def add_inventory_item(restaurant_id: UUID, item_data: SuccessResponse):
     """
     Adds a new menu item and its initial inventory to a specified restaurant. 
     This is the user-friendly way to add data via the API.
@@ -61,11 +67,12 @@ async def add_inventory_item(restaurant_id: UUID, item_data: InventoryItemReques
             threshold_qty=item_data.threshold_qty
         )
 
-        return {
+        data= {
             "message": f"Successfully added '{item_data.name}' to {restaurant.name}.",
             "menu_item_id": str(menu_item.id),
             "initial_stock": inventory.available_qty
         }
+        return SuccessResponse(data=data)
 
     except HTTPException:
         # Re-raise explicit HTTP exceptions (like 404)
@@ -87,10 +94,11 @@ async def add_restaurant(restaurant_data: RestaurantRequest):
             name=restaurant_data.name,
             is_active=restaurant_data.is_active
         )
-        return {
+        data= {
             "message": f"Restaurant '{restaurant.name}' created successfully.",
             "restaurant_id": str(restaurant.id)
         }
+        return SuccessResponse(data=data)
     except Exception as e:
         log.error(f"Error creating restaurant: {e}")
         raise HTTPException(

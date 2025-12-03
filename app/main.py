@@ -1,9 +1,16 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
+from fastapi.exceptions import RequestValidationError,HTTPException
 from app.core.db import init_db, close_db
 from app.api.v1.orders import router as orders_router
 from app.api.v1.inventory import router as inventory_router
 from app.core.config import PROJECT_NAME, VERSION
+from app.core.exception_handlers import (
+    http_exception_handler,
+    setup_exception_handlers,
+    validation_exception_handler,
+    generic_exception_handler
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,6 +33,9 @@ app = FastAPI(
 # Include routers for modular API structure
 app.include_router(orders_router, prefix="/api/v1/orders", tags=["Order Management"])
 app.include_router(inventory_router, prefix="/api/v1/inventory", tags=["Inventory Utilities"])
+
+
+setup_exception_handlers(app)
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():

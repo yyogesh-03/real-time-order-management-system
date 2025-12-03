@@ -28,7 +28,7 @@ class TestOrderRoutes:
             
             response = client.post("/api/v1/orders", json=order_data)
             assert response.status_code == 202
-            assert response.json()["status"] == "PLACED"
+            assert response.json()["data"]["status"] == "PLACED"
     
     def test_create_order_empty_items(self, client):
         """Test validation for empty items"""

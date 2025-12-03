@@ -99,8 +99,39 @@ The flow of an order from initial placement to completion or cancellation.
     -   API Documentation (Swagger UI): `http://localhost:8000/docs`
     -   Consumer Logs: Monitor the terminal output from the `consumer` service.
 
+## 📋 API Contracts
 
+### Base API Response Structure
+All API responses follow a consistent format:
 
+#### Success Response
+```
+{
+  "success": true,
+  "request_id": "a1b2c3d4e5f6",
+  "data": {
+    // Endpoint-specific data
+  }
+}
+```
+#### Error Response
+```
+{
+  "success": false,
+  "request_id": "a1b2c3d4e5f6",
+  "error": {
+    "code": "validation_error",
+    "message": "Invalid input data",
+    "details": [
+      {
+        "field": "quantity",
+        "message": "value must be greater than 0",
+        "type": "value_error.number.not_gt"
+      }
+    ]
+  }
+}
+```
 ## Testing Flow 🧪
 
 The testing flow demonstrates the separation of the **Fast Path (API)** and the **(Consumer)** through the Transactional Outbox Pattern.
@@ -174,3 +205,28 @@ Before placing an order, you must set up the necessary data using the inventory 
 | **Regular Maintenance** | Index rebuilding and statistics | **Maintenance**: Regular index rebuilding for performance |
 
 ---
+
+
+
+## 🚀 Scalability
+
+### Horizontal Scaling
+- **Stateless API Layer**: Multiple API instances can run behind a load balancer for high throughput
+- **Parallel Consumers**: Multiple worker processes can independently consume outbox events with full idempotency
+- **Database Optimization**: Connection pooling and optimized indexes for concurrent operations
+
+
+## 🔮 Future Enhancements
+
+### Future Improvements
+- **Kafka Integration**: Replace database polling with event streaming for true microservice communication
+- **Change Data Capture (CDC)**: Use Debezium to stream outbox events to Kafka without polling overhead
+- **Enhanced Monitoring**: Implement distributed tracing and comprehensive metrics dashboard
+
+### Service Evolution
+- **Service Decomposition**: Split into dedicated microservices:
+  - **Order Service**: Order lifecycle management
+  - **Inventory Service**: Stock management and reservations
+  - **Delivery Service**: Logistics and tracking
+  - **Notification Service**: Customer communications
+  - **Payment Service**: Payment processing and refunds
